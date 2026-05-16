@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hub Vision OS · Tree Space + Mosaic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: '#09090b',
+            card: '#18181b',
+            border: '#27272a',
+            input: '#3f3f46',
+            ring: '#3b82f6',
+            primary: { DEFAULT: '#3b82f6', foreground: '#ffffff' },
+            secondary: { DEFAULT: '#27272a', foreground: '#fafafa' },
+            destructive: { DEFAULT: '#ef4444' },
+            muted: { DEFAULT: '#27272a', foreground: '#a1a1aa' },
+            accent: { DEFAULT: '#3b82f6', foreground: '#ffffff' },
+          },
+          borderRadius: { lg: '0.75rem', md: '0.5rem', sm: '0.375rem' },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          animation: { 'modal-in': 'modal-in 0.3s ease-out' },
+          keyframes: { 'modal-in': { '0%': { opacity: '0', transform: 'translateY(10px) scale(0.97)' }, '100%': { opacity: '1', transform: 'translateY(0) scale(1)' } } }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Stromové odsazení a přechody */
+    .tree-node-item {
+      transition: all 0.15s ease;
+    }
+    .tree-children {
+      margin-left: 1.75rem;
+      padding-left: 0.5rem;
+      border-left: 1px solid #3f3f46;
+    }
+    .tree-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .tree-row:hover {
+      background: #27272a;
+    }
+    .tree-row.active-cat {
+      background: #3b82f610;
+      border-left: 2px solid #3b82f6;
+    }
+    .expand-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #a1a1aa;
+    }
+  </style>
+</head>
+<body class="bg-background text-zinc-100 antialiased h-screen w-screen overflow-hidden">
+<div id="app" class="flex flex-col h-full">
+  <nav class="flex items-center gap-4 px-4 py-3 mx-3 mt-3 rounded-xl border border-border bg-card">
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="w-8 h-8 rounded-md bg-primary flex items-center justify-center shadow-md shadow-primary/30">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="22"/><line x1="2" y1="12" x2="8" y2="12"/><line x1="16" y1="12" x2="22" y2="12"/></svg>
+      </div>
+      <span class="font-bold text-base tracking-tight">Hub Vision <span class="font-normal text-zinc-400">OS</span></span>
+    </div>
+    <div class="flex-1 max-w-md flex items-center gap-2 px-3 py-2 rounded-md border border-input bg-background focus-within:ring-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-400"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search apps, categories, tech stacks..." class="bg-transparent border-none outline-none text-sm w-full text-zinc-100 placeholder:text-zinc-500" />
+      <span id="searchCount" class="text-xs text-zinc-400 hidden px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700">0</span>
+    </div>
+    <div class="flex gap-1 bg-zinc-800/50 p-0.5 rounded-lg shrink-0">
+      <button id="btnMosaic" data-view="mosaic" class="px-3 py-1.5 rounded-md text-sm font-medium transition bg-zinc-700 text-zinc-100">⊞ Mosaic</button>
+      <button id="btnSpace" data-view="space" class="px-3 py-1.5 rounded-md text-sm font-medium transition bg-transparent text-zinc-400">◉ Space</button>
+    </div>
+    <button id="adminBtn" class="px-2 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 transition text-sm flex items-center gap-1"><span>⚙️</span> Správa</button>
+  </nav>
+
+  <div class="flex flex-1 overflow-hidden mx-3 mb-3 mt-3 gap-3">
+    <aside class="w-56 shrink-0 overflow-y-auto rounded-xl border border-border bg-card p-4 flex flex-col gap-1">
+      <h3 class="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-1 px-2">Categories</h3>
+      <button data-category="all" class="category-pill w-full text-left px-3 py-2 rounded-md text-sm font-medium transition bg-primary/20 text-primary border border-primary/30">✦ All Apps <span id="allCount" class="text-xs text-zinc-400 ml-auto">0</span></button>
+      <div id="categoryList" class="flex flex-col gap-1"></div>
+    </aside>
+    <main class="flex-1 rounded-xl border border-border bg-card overflow-hidden relative" id="mainViewport">
+      <!-- Mosaic View -->
+      <div id="mosaicView" class="h-full overflow-y-auto p-4 grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 content-start"></div>
+      
+      <!-- Space View - jednoduchý hierarchický strom -->
+      <div id="spaceView" class="h-full overflow-y-auto p-6 hidden">
+        <div id="treeContainer" class="text-sm select-none"></div>
+        <div class="text-center text-zinc-500 text-xs mt-6">Kliknutím na kategorii rozbalíte/sbalíte aplikace</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div id="detailModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center hidden">
+  <div class="bg-card border border-border rounded-xl w-[90%] max-w-lg p-6 animate-modal-in relative shadow-2xl">
+    <button id="closeModal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Admin modal -->
+<div id="adminModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center hidden overflow-y-auto py-8">
+  <div class="bg-card border border-border rounded-xl w-[90%] max-w-4xl p-6 relative shadow-2xl">
+    <button id="closeAdminModal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700">✕</button>
+    <h2 class="text-xl font-bold mb-4">Správa databáze (categories + apps)</h2>
+    <div class="flex gap-4 border-b border-border mb-4">
+      <button id="adminCategoriesTab" class="pb-2 px-2 text-sm font-semibold border-b-2 border-primary text-primary">Kategorie</button>
+      <button id="adminAppsTab" class="pb-2 px-2 text-sm font-semibold border-b-2 border-transparent text-zinc-400">Aplikace</button>
+    </div>
+    <div id="adminCategoriesPanel" class="max-h-[60vh] overflow-y-auto"></div>
+    <div id="adminAppsPanel" class="max-h-[60vh] overflow-y-auto hidden"></div>
+    <div class="flex justify-between gap-3 mt-6 pt-4 border-t border-border">
+      <div class="flex gap-2">
+        <button id="importDataBtn" class="px-3 py-1.5 rounded-md bg-zinc-700 text-sm">📂 Import JSON</button>
+        <button id="exportDataBtn" class="px-3 py-1.5 rounded-md bg-primary text-sm">💾 Export JSON</button>
+      </div>
+      <button id="closeAdminSaveBtn" class="px-4 py-1.5 rounded-md bg-green-700 text-sm">Hotovo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --------------------------------------------------------------
+// GLOBAL DATA
+// --------------------------------------------------------------
+let appData = {
+  categories: [],
+  apps: []
+};
+let state = {
+  view: 'mosaic',
+  activeCategory: 'all',
+  searchQuery: '',
+  expandedCategories: new Set(),   // uchovává ID kategorií rozbalených ve Space stromu
+  detailModalOpen: false,
+  adminModalOpen: false
+};
+
+// DOM elements
+const mosaicView = document.getElementById('mosaicView');
+const spaceView = document.getElementById('spaceView');
+const treeContainer = document.getElementById('treeContainer');
+const searchInput = document.getElementById('searchInput');
+const searchCount = document.getElementById('searchCount');
+const detailModal = document.getElementById('detailModal');
+const modalContent = document.getElementById('modalContent');
+const closeModalBtn = document.getElementById('closeModal');
+const btnMosaic = document.getElementById('btnMosaic');
+const btnSpace = document.getElementById('btnSpace');
+const categoryListEl = document.getElementById('categoryList');
+const mainViewport = document.getElementById('mainViewport');
+const adminBtn = document.getElementById('adminBtn');
+const adminModal = document.getElementById('adminModal');
+const closeAdminModal = document.getElementById('closeAdminModal');
+const closeAdminSaveBtn = document.getElementById('closeAdminSaveBtn');
+const adminCategoriesPanel = document.getElementById('adminCategoriesPanel');
+const adminAppsPanel = document.getElementById('adminAppsPanel');
+const adminCategoriesTab = document.getElementById('adminCategoriesTab');
+const adminAppsTab = document.getElementById('adminAppsTab');
+const importDataBtn = document.getElementById('importDataBtn');
+const exportDataBtn = document.getElementById('exportDataBtn');
+const allCountSpan = document.getElementById('allCount');
+
+// Helper: save to localStorage
+function persistToLocal() {
+  localStorage.setItem('hubData', JSON.stringify({ categories: appData.categories, apps: appData.apps }));
+}
+
+// Load default fallback data
+function loadDefaultData() {
+  appData.categories = [
+    { id: 'productivity', name: 'Productivity', icon: '⚡', color: '#3b82f6' },
+    { id: 'design', name: 'Design & Creative', icon: '🎨', color: '#8b5cf6' },
+    { id: 'development', name: 'Development', icon: '⌨️', color: '#22c55e' },
+    { id: 'communication', name: 'Communication', icon: '💬', color: '#eab308' },
+    { id: 'data', name: 'Data & Analytics', icon: '📊', color: '#f97316' },
+    { id: 'ai', name: 'AI & ML', icon: '🧠', color: '#ec4899' },
+    { id: 'security', name: 'Security', icon: '🔒', color: '#ef4444' },
+    { id: 'infrastructure', name: 'Infrastructure', icon: '☁️', color: '#06b6d4' }
+  ];
+  appData.apps = [
+    { id:'notion', name:'Notion', icon:'📝', category:'productivity', status:'active', description:'All-in-one workspace for notes, docs, wikis, and project management.', tech:['React','TypeScript','Node.js'] },
+    { id:'linear', name:'Linear', icon:'⚡', category:'productivity', status:'active', description:'Streamlined issue tracking and project management for modern teams.', tech:['React','GraphQL','PostgreSQL'] },
+    { id:'figma', name:'Figma', icon:'🎨', category:'design', status:'active', description:'Collaborative interface design tool with real-time multiplayer editing.', tech:['WebAssembly','C++','TypeScript'] },
+    { id:'sketch', name:'Sketch', icon:'✏️', category:'design', status:'maintenance', description:'Vector graphics editor for macOS with powerful prototyping capabilities.', tech:['Objective-C','Swift','Metal'] },
+    { id:'vscode', name:'VS Code', icon:'💻', category:'development', status:'active', description:'Free, open-source code editor with extensive extension ecosystem.', tech:['TypeScript','Electron','Node.js'] },
+    { id:'github', name:'GitHub', icon:'🐙', category:'development', status:'active', description:'Platform for version control, collaboration, and CI/CD workflows.', tech:['Ruby','Go','React'] },
+    { id:'slack', name:'Slack', icon:'💬', category:'communication', status:'active', description:'Business communication platform with channels, threads, and integrations.', tech:['React','PHP','Java'] },
+    { id:'discord', name:'Discord', icon:'🎮', category:'communication', status:'active', description:'Voice, video, and text communication for communities and teams.', tech:['React Native','Python','Elixir'] },
+    { id:'tableau', name:'Tableau', icon:'📊', category:'data', status:'active', description:'Interactive data visualization and business intelligence platform.', tech:['C++','Java','React'] },
+    { id:'snowflake', name:'Snowflake', icon:'❄️', category:'data', status:'beta', description:'Cloud-native data warehouse with elastic scaling and secure sharing.', tech:['Java','SQL','AWS'] },
+    { id:'openai', name:'OpenAI API', icon:'🧠', category:'ai', status:'active', description:'Access to GPT models for natural language understanding and generation.', tech:['Python','CUDA','Transformers'] },
+    { id:'huggingface', name:'Hugging Face', icon:'🤗', category:'ai', status:'active', description:'Community-driven platform for machine learning models and datasets.', tech:['Python','PyTorch','Rust'] },
+    { id:'crowdstrike', name:'CrowdStrike', icon:'🛡️', category:'security', status:'active', description:'Cloud-based endpoint protection and threat intelligence platform.', tech:['Go','C++','Kubernetes'] },
+    { id:'snyk', name:'Snyk', icon:'🔐', category:'security', status:'beta', description:'Developer-first security platform for finding and fixing vulnerabilities.', tech:['TypeScript','Go','Docker'] },
+    { id:'aws', name:'AWS', icon:'☁️', category:'infrastructure', status:'active', description:'Comprehensive cloud computing platform with 200+ services globally.', tech:['Java','Ruby','Rust'] },
+    { id:'vercel', name:'Vercel', icon:'▲', category:'infrastructure', status:'active', description:'Frontend cloud platform for deploying web apps with serverless functions.', tech:['Next.js','Edge Runtime','Rust'] },
+    { id:'datadog', name:'Datadog', icon:'🐶', category:'infrastructure', status:'active', description:'Observability platform for monitoring servers, databases, and applications.', tech:['Go','React','Kafka'] },
+    { id:'asana', name:'Asana', icon:'✓', category:'productivity', status:'active', description:'Work management platform for teams to orchestrate projects and tasks.', tech:['React','TypeScript','Scala'] },
+    { id:'canva', name:'Canva', icon:'🖼️', category:'design', status:'active', description:'Online graphic design platform with drag-and-drop simplicity.', tech:['Vue.js','WebGL','Java'] },
+    { id:'gitlab', name:'GitLab', icon:'🦊', category:'development', status:'active', description:'Complete DevOps platform with integrated CI/CD and security scanning.', tech:['Ruby','Go','Vue.js'] },
+    { id:'teams', name:'Microsoft Teams', icon:'👥', category:'communication', status:'active', description:'Unified communication and collaboration hub for Microsoft 365.', tech:['React','C#','.NET'] },
+    { id:'looker', name:'Looker', icon:'👁️', category:'data', status:'active', description:'Business intelligence and data modeling platform for modern enterprises.', tech:['Go','React','LookML'] },
+    { id:'anthropic', name:'Anthropic', icon:'🔮', category:'ai', status:'beta', description:'AI research company building reliable and steerable AI systems.', tech:['Python','JAX','TPU'] },
+    { id:'cloudflare', name:'Cloudflare', icon:'🌐', category:'security', status:'active', description:'Web performance and security platform with DDoS protection and CDN.', tech:['Rust','Go','Nginx'] }
+  ];
+  persistToLocal();
+}
+
+// Load data.json from server
+async function loadDataFromJson() {
+  try {
+    const res = await fetch('data.json?v=' + Date.now());
+    if (!res.ok) throw new Error('not found');
+    const json = await res.json();
+    if (json.categories && json.apps) {
+      appData.categories = json.categories;
+      appData.apps = json.apps;
+      persistToLocal();
+      return true;
+    }
+    throw new Error('invalid schema');
+  } catch(e) {
+    console.warn("data.json not loaded, using localStorage or default");
+    const local = localStorage.getItem('hubData');
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (parsed.categories && parsed.apps) {
+          appData.categories = parsed.categories;
+          appData.apps = parsed.apps;
+          return true;
+        }
+      } catch(e2) {}
+    }
+    loadDefaultData();
+    return false;
+  }
+}
+
+// Filtering
+function getFilteredApps() {
+  let filtered = [...appData.apps];
+  if (state.activeCategory !== 'all') filtered = filtered.filter(a => a.category === state.activeCategory);
+  if (state.searchQuery.trim()) {
+    const q = state.searchQuery.toLowerCase().trim();
+    filtered = filtered.filter(a => a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) || a.tech.some(t => t.toLowerCase().includes(q)) || a.status.includes(q));
+  }
+  return filtered;
+}
+
+function getCategoryCount(catId) {
+  if (catId === 'all') return appData.apps.length;
+  return appData.apps.filter(a => a.category === catId).length;
+}
+
+// RENDER categories sidebar
+function renderCategories() {
+  categoryListEl.innerHTML = '';
+  appData.categories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'category-pill w-full text-left px-3 py-2 rounded-md text-sm font-medium transition';
+    if (state.activeCategory === cat.id) {
+      btn.classList.add('bg-primary/20', 'text-primary', 'border', 'border-primary/30');
+    } else {
+      btn.classList.add('bg-transparent', 'text-zinc-400', 'hover:bg-zinc-800/50');
+    }
+    btn.dataset.category = cat.id;
+    btn.innerHTML = `${cat.icon} ${cat.name} <span class="text-xs text-zinc-500 ml-auto">${getCategoryCount(cat.id)}</span>`;
+    btn.addEventListener('click', () => {
+      state.activeCategory = cat.id;
+      // Při změně kategorie ve Space stromu zachováme rozbalení této kategorie
+      if (state.view === 'space' && !state.expandedCategories.has(cat.id)) {
+        state.expandedCategories.add(cat.id);
+      }
+      updateAll();
+    });
+    categoryListEl.appendChild(btn);
+  });
+  const allBtn = document.querySelector('[data-category="all"]');
+  if (allBtn) {
+    allBtn.className = `category-pill w-full text-left px-3 py-2 rounded-md text-sm font-medium transition ${state.activeCategory === 'all' ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-transparent text-zinc-400 hover:bg-zinc-800/50'}`;
+    allBtn.innerHTML = `✦ All Apps <span class="text-xs text-zinc-500 ml-auto">${getCategoryCount('all')}</span>`;
+  }
+  allCountSpan.textContent = getCategoryCount('all');
+}
+
+// RENDER Mosaic
+function renderMosaic() {
+  const filtered = getFilteredApps();
+  mosaicView.innerHTML = '';
+  if (!filtered.length) {
+    mosaicView.innerHTML = '<div class="col-span-full flex items-center justify-center h-64 text-zinc-500 text-sm">No apps found</div>';
+    return;
+  }
+  filtered.forEach(app => {
+    const cat = appData.categories.find(c => c.id === app.category);
+    const card = document.createElement('div');
+    card.className = 'bg-card border border-border rounded-lg p-5 cursor-pointer transition hover:border-primary/50 hover:-translate-y-1';
+    card.innerHTML = `
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xl">${app.icon}</div>
+        <div>
+          <div class="font-semibold text-sm">${app.name}</div>
+          <div class="text-xs text-zinc-500 flex gap-1.5 mt-0.5">
+            <span class="w-2 h-2 rounded-full ${app.status==='active'?'bg-green-500':app.status==='beta'?'bg-yellow-500':'bg-red-500'}"></span>
+            <span class="capitalize">${app.status}</span>
+            <span>·</span>
+            <span>${cat?.icon||''} ${cat?.name||app.category}</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-sm text-zinc-400 line-clamp-2 mb-3">${app.description}</p>
+      <div class="flex flex-wrap gap-1.5">${app.tech.slice(0,3).map(t => `<span class="px-2 py-0.5 rounded text-xs bg-zinc-800 border border-zinc-700">${t}</span>`).join('')}</div>
+    `;
+    card.addEventListener('click', () => openDetailModal(app));
+    mosaicView.appendChild(card);
+  });
+}
+
+// ------------------ SPACE VIEW: JEDNODUCHÝ HIERARCHICKÝ STROM ------------------
+function renderSpaceTree() {
+  treeContainer.innerHTML = '';
+  
+  // Kořenový uzel
+  const rootDiv = document.createElement('div');
+  rootDiv.className = 'tree-node-item';
+  const rootRow = document.createElement('div');
+  rootRow.className = 'tree-row font-semibold';
+  rootRow.innerHTML = `<span class="expand-icon">📁</span> <span>◎ AppHub Catalog</span>`;
+  rootDiv.appendChild(rootRow);
+  
+  // Filtrování kategorií podle aktivní kategorie (pokud není 'all') a podle vyhledávání
+  let visibleCategories = [...appData.categories];
+  if (state.activeCategory !== 'all') {
+    visibleCategories = visibleCategories.filter(c => c.id === state.activeCategory);
+  }
+  
+  // Pokud je vyhledávací dotaz, zobrazí se pouze kategorie, které obsahují alespoň jednu vyhovující aplikaci
+  let filteredAppsForSearch = [];
+  if (state.searchQuery.trim()) {
+    const q = state.searchQuery.toLowerCase().trim();
+    filteredAppsForSearch = appData.apps.filter(a => 
+      a.name.toLowerCase().includes(q) || 
+      a.description.toLowerCase().includes(q) || 
+      a.tech.some(t => t.toLowerCase().includes(q)) ||
+      a.status.toLowerCase().includes(q)
+    );
+    const matchedCatIds = new Set(filteredAppsForSearch.map(a => a.category));
+    visibleCategories = visibleCategories.filter(c => matchedCatIds.has(c.id));
+  }
+  
+  // Pro každou kategorii vytvoříme uzel a podle rozbalení zobrazíme aplikace
+  visibleCategories.forEach(cat => {
+    const catNode = document.createElement('div');
+    catNode.className = 'tree-node-item';
+    
+    // Řádek kategorie
+    const catRow = document.createElement('div');
+    catRow.className = `tree-row ${state.activeCategory === cat.id ? 'active-cat' : ''}`;
+    const isExpanded = state.expandedCategories.has(cat.id);
+    const expandIcon = isExpanded ? '▼' : '▶';
+    catRow.innerHTML = `
+      <span class="expand-icon">${expandIcon}</span>
+      <span>${cat.icon} ${cat.name}</span>
+      <span class="text-xs text-zinc-500 ml-auto">${getCategoryCount(cat.id)}</span>
+    `;
+    
+    // Klik na řádek kategorie: rozbal/sbal a případně nastav jako aktivní kategorii (pro sidebar)
+    catRow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.expandedCategories.has(cat.id)) {
+        state.expandedCategories.delete(cat.id);
+      } else {
+        state.expandedCategories.add(cat.id);
+      }
+      // Volitelně: při kliknutí na kategorii ve stromu ji nastavit jako aktivní (aby se propojil sidebar)
+      state.activeCategory = cat.id;
+      updateAll();  // překreslí celé UI
+    });
+    catNode.appendChild(catRow);
+    
+    // Pokud je kategorie rozbalená, zobrazíme její aplikace
+    if (isExpanded) {
+      let appsToShow = appData.apps.filter(a => a.category === cat.id);
+      // Aplikovat vyhledávání
+      if (state.searchQuery.trim()) {
+        const q = state.searchQuery.toLowerCase().trim();
+        appsToShow = appsToShow.filter(a => 
+          a.name.toLowerCase().includes(q) || 
+          a.description.toLowerCase().includes(q) || 
+          a.tech.some(t => t.toLowerCase().includes(q)) ||
+          a.status.toLowerCase().includes(q)
+        );
+      }
+      if (appsToShow.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'tree-children text-zinc-500 text-xs py-1';
+        emptyDiv.innerText = '— žádné aplikace neodpovídají —';
+        catNode.appendChild(emptyDiv);
+      } else {
+        const childrenDiv = document.createElement('div');
+        childrenDiv.className = 'tree-children';
+        appsToShow.forEach(app => {
+          const appRow = document.createElement('div');
+          appRow.className = 'tree-row pl-1 cursor-pointer';
+          appRow.innerHTML = `
+            <span class="expand-icon w-5"></span>
+            <span>${app.icon} ${app.name}</span>
+            <span class="text-xs text-zinc-500 ml-auto">${app.status}</span>
+          `;
+          appRow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDetailModal(app);
+          });
+          childrenDiv.appendChild(appRow);
+        });
+        catNode.appendChild(childrenDiv);
+      }
+    }
+    rootDiv.appendChild(catNode);
+  });
+  
+  if (visibleCategories.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'text-zinc-500 text-sm p-4 text-center';
+    emptyMsg.innerText = 'Žádné kategorie ani aplikace neodpovídají vašemu filtru.';
+    rootDiv.appendChild(emptyMsg);
+  }
+  
+  treeContainer.appendChild(rootDiv);
+}
+
+// ------------------------------------------------------------------
+// Detail modal
+function openDetailModal(app) {
+  const cat = appData.categories.find(c=>c.id===app.category);
+  modalContent.innerHTML = `
+    <div class="flex items-center gap-4 mb-4"><div class="w-12 h-12 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-2xl">${app.icon}</div><div><h2 class="text-lg font-semibold">${app.name}</h2><div class="text-sm text-zinc-500 flex gap-2"><span class="w-2 h-2 rounded-full ${app.status==='active'?'bg-green-500':app.status==='beta'?'bg-yellow-500':'bg-red-500'}"></span><span class="capitalize">${app.status}</span><span>·</span><span>${cat?.icon||''} ${cat?.name||app.category}</span></div></div></div>
+    <p class="text-zinc-300 mb-4">${app.description}</p><div class="mb-4"><h4 class="text-xs font-semibold uppercase text-zinc-500 mb-2">Tech Stack</h4><div class="flex flex-wrap gap-2">${app.tech.map(t=>`<span class="px-2.5 py-1 rounded text-xs bg-zinc-800 border border-zinc-700">${t}</span>`).join('')}</div></div>
+    <div class="p-3 rounded-md bg-zinc-900 border border-zinc-800 text-xs text-zinc-500"><span>🔗</span> hub://apps/${app.category}/${app.id}</div>`;
+  detailModal.classList.remove('hidden');
+  state.detailModalOpen = true;
+}
+function closeDetailModal() { detailModal.classList.add('hidden'); state.detailModalOpen = false; }
+closeModalBtn.addEventListener('click', closeDetailModal);
+detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeDetailModal(); });
+
+// Switch view
+function switchView(view) {
+  state.view = view;
+  if (view === 'mosaic') {
+    mosaicView.classList.remove('hidden');
+    spaceView.classList.add('hidden');
+    btnMosaic.className = 'px-3 py-1.5 rounded-md text-sm font-medium transition bg-zinc-700 text-zinc-100';
+    btnSpace.className = 'px-3 py-1.5 rounded-md text-sm font-medium transition bg-transparent text-zinc-400';
+    renderMosaic();
+  } else {
+    mosaicView.classList.add('hidden');
+    spaceView.classList.remove('hidden');
+    btnSpace.className = 'px-3 py-1.5 rounded-md text-sm font-medium transition bg-zinc-700 text-zinc-100';
+    btnMosaic.className = 'px-3 py-1.5 rounded-md text-sm font-medium transition bg-transparent text-zinc-400';
+    // Při prvním otevření Space View rozbalíme první 3 kategorie
+    if (state.expandedCategories.size === 0 && appData.categories.length) {
+      appData.categories.slice(0,3).forEach(c => state.expandedCategories.add(c.id));
+    }
+    renderSpaceTree();
+  }
+}
+btnMosaic.addEventListener('click', ()=>switchView('mosaic'));
+btnSpace.addEventListener('click', ()=>switchView('space'));
+
+searchInput.addEventListener('input', ()=>{
+  state.searchQuery = searchInput.value;
+  const filtered = getFilteredApps();
+  searchCount.style.display = state.searchQuery.trim() ? 'inline' : 'none';
+  searchCount.textContent = `${filtered.length} result${filtered.length!==1?'s':''}`;
+  updateAll();
+});
+
+function updateAll() {
+  renderCategories();
+  if (state.view === 'mosaic') {
+    renderMosaic();
+  } else {
+    renderSpaceTree();
+  }
+  const filtered = getFilteredApps();
+  searchCount.style.display = state.searchQuery.trim() ? 'inline' : 'none';
+  searchCount.textContent = `${filtered.length} result${filtered.length!==1?'s':''}`;
+}
+
+// ------------------ ADMIN MODULE (beze změny) ------------------
+function renderAdminCategories() {
+  adminCategoriesPanel.innerHTML = `<div class="mb-4 flex justify-end"><button id="addCategoryBtn" class="px-3 py-1 bg-blue-600 rounded-md text-sm">+ Nová kategorie</button></div><div class="space-y-2" id="categoriesListAdmin"></div>`;
+  const container = adminCategoriesPanel.querySelector('#categoriesListAdmin');
+  appData.categories.forEach((cat, idx) => {
+    const div = document.createElement('div');
+    div.className = 'flex justify-between items-center p-3 border border-border rounded-md';
+    div.innerHTML = `
+      <div><span class="text-xl mr-2">${cat.icon}</span><strong>${cat.name}</strong> <span class="text-xs text-zinc-400">(${cat.id})</span></div>
+      <div><button data-idx="${idx}" class="editCategoryBtn text-primary text-sm mr-2">✏️</button><button data-idx="${idx}" class="deleteCategoryBtn text-destructive text-sm">🗑️</button></div>`;
+    container.appendChild(div);
+  });
+  document.querySelectorAll('.editCategoryBtn').forEach(btn => btn.addEventListener('click', (e) => { const idx = parseInt(btn.dataset.idx); editCategoryDialog(idx); }));
+  document.querySelectorAll('.deleteCategoryBtn').forEach(btn => btn.addEventListener('click', (e) => { const idx = parseInt(btn.dataset.idx); if(confirm('Smazat kategorii? (aplikace zůstanou, ale bez kategorie)')) { const catId = appData.categories[idx].id; appData.categories.splice(idx,1); appData.apps.forEach(a => { if(a.category === catId) a.category = '_deleted_'; }); persistToLocal(); renderAdminCategories(); renderAdminApps(); updateAll(); } }));
+  document.getElementById('addCategoryBtn')?.addEventListener('click', () => editCategoryDialog(null));
+}
+function editCategoryDialog(idx) {
+  const cat = idx !== null ? appData.categories[idx] : { id:'', name:'', icon:'📦', color:'#3b82f6' };
+  const newId = prompt('ID kategorie (jedinečné, bez mezer)', cat.id);
+  if(!newId) return;
+  const newName = prompt('Název', cat.name);
+  if(!newName) return;
+  const newIcon = prompt('Ikona (emoji nebo znak)', cat.icon);
+  if(!newIcon) return;
+  if(idx === null) {
+    if(appData.categories.some(c => c.id === newId)) { alert('ID již existuje'); return; }
+    appData.categories.push({ id:newId, name:newName, icon:newIcon, color:'#3b82f6' });
+  } else {
+    appData.categories[idx].id = newId;
+    appData.categories[idx].name = newName;
+    appData.categories[idx].icon = newIcon;
+  }
+  persistToLocal();
+  renderAdminCategories();
+  renderAdminApps();
+  updateAll();
+}
+
+function renderAdminApps() {
+  adminAppsPanel.innerHTML = `<div class="mb-4 flex justify-end"><button id="addAppBtn" class="px-3 py-1 bg-blue-600 rounded-md text-sm">+ Nová aplikace</button></div><div class="space-y-2" id="appsListAdmin"></div>`;
+  const container = adminAppsPanel.querySelector('#appsListAdmin');
+  appData.apps.forEach((app, idx) => {
+    const catName = appData.categories.find(c=>c.id===app.category)?.name || app.category;
+    const div = document.createElement('div');
+    div.className = 'flex justify-between items-center p-3 border border-border rounded-md';
+    div.innerHTML = `<div><span class="text-xl mr-2">${app.icon}</span><strong>${app.name}</strong> <span class="text-xs text-zinc-400">${catName}</span><div class="text-xs">${app.tech.join(', ')}</div></div>
+      <div><button data-idx="${idx}" class="editAppBtn text-primary text-sm mr-2">✏️</button><button data-idx="${idx}" class="deleteAppBtn text-destructive text-sm">🗑️</button></div>`;
+    container.appendChild(div);
+  });
+  document.querySelectorAll('.editAppBtn').forEach(btn => btn.addEventListener('click', (e) => { const idx = parseInt(btn.dataset.idx); editAppDialog(idx); }));
+  document.querySelectorAll('.deleteAppBtn').forEach(btn => btn.addEventListener('click', (e) => { const idx = parseInt(btn.dataset.idx); if(confirm('Smazat aplikaci?')) { appData.apps.splice(idx,1); persistToLocal(); renderAdminApps(); updateAll(); } }));
+  document.getElementById('addAppBtn')?.addEventListener('click', () => editAppDialog(null));
+}
+function editAppDialog(idx) {
+  const app = idx !== null ? appData.apps[idx] : { id:'', name:'', icon:'📱', category:appData.categories[0]?.id || '', status:'active', description:'', tech:[] };
+  const newId = prompt('ID (jedinečné)', app.id);
+  if(!newId) return;
+  const newName = prompt('Název', app.name);
+  if(!newName) return;
+  const newIcon = prompt('Ikona', app.icon);
+  if(!newIcon) return;
+  const catList = appData.categories.map(c=>c.id).join(', ');
+  const newCat = prompt(`Kategorie (jedna z: ${catList})`, app.category);
+  if(!newCat || !appData.categories.some(c=>c.id===newCat)) { alert('Neplatná kategorie'); return; }
+  const newStatus = prompt('Status (active/beta/maintenance)', app.status);
+  const newDesc = prompt('Popis', app.description) || '';
+  const techStr = prompt('Technologie (čárkou oddělené)', app.tech.join(','));
+  const newTech = techStr ? techStr.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  if(idx === null) {
+    if(appData.apps.some(a=>a.id===newId)) { alert('ID aplikace již existuje'); return; }
+    appData.apps.push({ id:newId, name:newName, icon:newIcon, category:newCat, status:newStatus, description:newDesc, tech:newTech });
+  } else {
+    appData.apps[idx] = { ...appData.apps[idx], id:newId, name:newName, icon:newIcon, category:newCat, status:newStatus, description:newDesc, tech:newTech };
+  }
+  persistToLocal();
+  renderAdminApps();
+  updateAll();
+}
+
+function exportToJson() {
+  const dataStr = JSON.stringify({ categories: appData.categories, apps: appData.apps }, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importFromJson(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target.result);
+      if(json.categories && json.apps) {
+        appData.categories = json.categories;
+        appData.apps = json.apps;
+        persistToLocal();
+        state.expandedCategories.clear();
+        if(state.activeCategory !== 'all') state.activeCategory = 'all';
+        updateAll();
+        alert('Data importována. Nezapomeňte soubor uložit do repozitáře!');
+        if(adminModal.style.display !== 'none') { renderAdminCategories(); renderAdminApps(); }
+      } else throw new Error();
+    } catch(err) { alert('Neplatný JSON soubor'); }
+  };
+  reader.readAsText(file);
+}
+importDataBtn.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.onchange = (e) => { if(e.target.files[0]) importFromJson(e.target.files[0]); };
+  input.click();
+});
+exportDataBtn.addEventListener('click', exportToJson);
+
+function openAdminModalFn() {
+  adminModal.classList.remove('hidden');
+  renderAdminCategories();
+  renderAdminApps();
+  if(adminCurrentTab === 'categories') { adminCategoriesPanel.classList.remove('hidden'); adminAppsPanel.classList.add('hidden'); adminCategoriesTab.classList.add('border-primary','text-primary'); adminAppsTab.classList.remove('border-primary','text-primary'); adminAppsTab.classList.add('text-zinc-400'); }
+  else { adminAppsPanel.classList.remove('hidden'); adminCategoriesPanel.classList.add('hidden'); adminAppsTab.classList.add('border-primary','text-primary'); adminCategoriesTab.classList.remove('border-primary','text-primary'); adminCategoriesTab.classList.add('text-zinc-400'); }
+}
+function closeAdminModalFn() { adminModal.classList.add('hidden'); }
+adminBtn.addEventListener('click', openAdminModalFn);
+closeAdminModal.addEventListener('click', closeAdminModalFn);
+closeAdminSaveBtn.addEventListener('click', closeAdminModalFn);
+let adminCurrentTab = 'categories';
+adminCategoriesTab.addEventListener('click', () => {
+  adminCurrentTab = 'categories';
+  adminCategoriesPanel.classList.remove('hidden'); adminAppsPanel.classList.add('hidden');
+  adminCategoriesTab.classList.add('border-primary','text-primary'); adminAppsTab.classList.remove('border-primary','text-primary');
+  adminAppsTab.classList.add('text-zinc-400');
+  renderAdminCategories();
+});
+adminAppsTab.addEventListener('click', () => {
+  adminCurrentTab = 'apps';
+  adminAppsPanel.classList.remove('hidden'); adminCategoriesPanel.classList.add('hidden');
+  adminAppsTab.classList.add('border-primary','text-primary'); adminCategoriesTab.classList.remove('border-primary','text-primary');
+  adminCategoriesTab.classList.add('text-zinc-400');
+  renderAdminApps();
+});
+
+// keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if(e.key==='Escape') { if(state.detailModalOpen) closeDetailModal(); else if(state.adminModalOpen) closeAdminModalFn(); else { state.searchQuery=''; searchInput.value=''; state.activeCategory='all'; state.expandedCategories.clear(); updateAll(); } }
+  if((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); searchInput.focus(); }
+  if((e.metaKey||e.ctrlKey) && e.key==='1') { e.preventDefault(); switchView('mosaic'); }
+  if((e.metaKey||e.ctrlKey) && e.key==='2') { e.preventDefault(); switchView('space'); }
+});
+
+window.addEventListener('resize', ()=>{
+  if(state.view==='space') renderSpaceTree();
+  else renderMosaic();
+});
+
+// INIT
+(async function init() {
+  await loadDataFromJson();
+  if (state.expandedCategories.size === 0 && appData.categories.length) {
+    appData.categories.slice(0,3).forEach(c => state.expandedCategories.add(c.id));
+  }
+  renderCategories();
+  renderMosaic();
+  updateAll();
+})();
+</script>
+</body>
+</html>

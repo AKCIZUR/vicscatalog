@@ -1,0 +1,38 @@
+{
+  "categories": [
+    { "id": "productivity", "name": "Productivity", "icon": "⚡", "color": "#3b82f6" },
+    { "id": "design", "name": "Design & Creative", "icon": "🎨", "color": "#8b5cf6" },
+    { "id": "development", "name": "Development", "icon": "⌨️", "color": "#22c55e" },
+    { "id": "communication", "name": "Communication", "icon": "💬", "color": "#eab308" },
+    { "id": "data", "name": "Data & Analytics", "icon": "📊", "color": "#f97316" },
+    { "id": "ai", "name": "AI & ML", "icon": "🧠", "color": "#ec4899" },
+    { "id": "security", "name": "Security", "icon": "🔒", "color": "#ef4444" },
+    { "id": "infrastructure", "name": "Infrastructure", "icon": "☁️", "color": "#06b6d4" }
+  ],
+  "apps": [
+    { "id": "notion", "name": "Notion", "icon": "📝", "category": "productivity", "status": "active", "description": "All-in-one workspace for notes, docs, wikis, and project management.", "tech": ["React", "TypeScript", "Node.js"] },
+    { "id": "linear", "name": "Linear", "icon": "⚡", "category": "productivity", "status": "active", "description": "Streamlined issue tracking and project management for modern teams.", "tech": ["React", "GraphQL", "PostgreSQL"] },
+    { "id": "figma", "name": "Figma", "icon": "🎨", "category": "design", "status": "active", "description": "Collaborative interface design tool with real-time multiplayer editing.", "tech": ["WebAssembly", "C++", "TypeScript"] },
+    { "id": "sketch", "name": "Sketch", "icon": "✏️", "category": "design", "status": "maintenance", "description": "Vector graphics editor for macOS with powerful prototyping capabilities.", "tech": ["Objective-C", "Swift", "Metal"] },
+    { "id": "vscode", "name": "VS Code", "icon": "💻", "category": "development", "status": "active", "description": "Free, open-source code editor with extensive extension ecosystem.", "tech": ["TypeScript", "Electron", "Node.js"] },
+    { "id": "github", "name": "GitHub", "icon": "🐙", "category": "development", "status": "active", "description": "Platform for version control, collaboration, and CI/CD workflows.", "tech": ["Ruby", "Go", "React"] },
+    { "id": "slack", "name": "Slack", "icon": "💬", "category": "communication", "status": "active", "description": "Business communication platform with channels, threads, and integrations.", "tech": ["React", "PHP", "Java"] },
+    { "id": "discord", "name": "Discord", "icon": "🎮", "category": "communication", "status": "active", "description": "Voice, video, and text communication for communities and teams.", "tech": ["React Native", "Python", "Elixir"] },
+    { "id": "tableau", "name": "Tableau", "icon": "📊", "category": "data", "status": "active", "description": "Interactive data visualization and business intelligence platform.", "tech": ["C++", "Java", "React"] },
+    { "id": "snowflake", "name": "Snowflake", "icon": "❄️", "category": "data", "status": "beta", "description": "Cloud-native data warehouse with elastic scaling and secure sharing.", "tech": ["Java", "SQL", "AWS"] },
+    { "id": "openai", "name": "OpenAI API", "icon": "🧠", "category": "ai", "status": "active", "description": "Access to GPT models for natural language understanding and generation.", "tech": ["Python", "CUDA", "Transformers"] },
+    { "id": "huggingface", "name": "Hugging Face", "icon": "🤗", "category": "ai", "status": "active", "description": "Community-driven platform for machine learning models and datasets.", "tech": ["Python", "PyTorch", "Rust"] },
+    { "id": "crowdstrike", "name": "CrowdStrike", "icon": "🛡️", "category": "security", "status": "active", "description": "Cloud-based endpoint protection and threat intelligence platform.", "tech": ["Go", "C++", "Kubernetes"] },
+    { "id": "snyk", "name": "Snyk", "icon": "🔐", "category": "security", "status": "beta", "description": "Developer-first security platform for finding and fixing vulnerabilities.", "tech": ["TypeScript", "Go", "Docker"] },
+    { "id": "aws", "name": "AWS", "icon": "☁️", "category": "infrastructure", "status": "active", "description": "Comprehensive cloud computing platform with 200+ services globally.", "tech": ["Java", "Ruby", "Rust"] },
+    { "id": "vercel", "name": "Vercel", "icon": "▲", "category": "infrastructure", "status": "active", "description": "Frontend cloud platform for deploying web apps with serverless functions.", "tech": ["Next.js", "Edge Runtime", "Rust"] },
+    { "id": "datadog", "name": "Datadog", "icon": "🐶", "category": "infrastructure", "status": "active", "description": "Observability platform for monitoring servers, databases, and applications.", "tech": ["Go", "React", "Kafka"] },
+    { "id": "asana", "name": "Asana", "icon": "✓", "category": "productivity", "status": "active", "description": "Work management platform for teams to orchestrate projects and tasks.", "tech": ["React", "TypeScript", "Scala"] },
+    { "id": "canva", "name": "Canva", "icon": "🖼️", "category": "design", "status": "active", "description": "Online graphic design platform with drag-and-drop simplicity.", "tech": ["Vue.js", "WebGL", "Java"] },
+    { "id": "gitlab", "name": "GitLab", "icon": "🦊", "category": "development", "status": "active", "description": "Complete DevOps platform with integrated CI/CD and security scanning.", "tech": ["Ruby", "Go", "Vue.js"] },
+    { "id": "teams", "name": "Microsoft Teams", "icon": "👥", "category": "communication", "status": "active", "description": "Unified communication and collaboration hub for Microsoft 365.", "tech": ["React", "C#", ".NET"] },
+    { "id": "looker", "name": "Looker", "icon": "👁️", "category": "data", "status": "active", "description": "Business intelligence and data modeling platform for modern enterprises.", "tech": ["Go", "React", "LookML"] },
+    { "id": "anthropic", "name": "Anthropic", "icon": "🔮", "category": "ai", "status": "beta", "description": "AI research company building reliable and steerable AI systems.", "tech": ["Python", "JAX", "TPU"] },
+    { "id": "cloudflare", "name": "Cloudflare", "icon": "🌐", "category": "security", "status": "active", "description": "Web performance and security platform with DDoS protection and CDN.", "tech": ["Rust", "Go", "Nginx"] }
+  ]
+}
